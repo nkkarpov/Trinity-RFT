@@ -21,19 +21,15 @@ class GSPOLossFn(PolicyLossFn):
         clip_range_high: Optional[float] = None,
     ) -> None:
         super().__init__(backend=backend)
-        if clip_range_low is None:
-            if clip_range is None:
-                raise ValueError("Either clip_range or clip_range_low must be specified.")
-            self.clip_range_low = clip_range
-        else:
-            self.clip_range_low = clip_range_low
+        _clip_range_low = clip_range_low if clip_range_low is not None else clip_range
+        if _clip_range_low is None:
+            raise ValueError("Either clip_range or clip_range_low must be specified.")
+        self.clip_range_low = _clip_range_low
 
-        if clip_range_high is None:
-            if clip_range is None:
-                raise ValueError("Either clip_range or clip_range_high must be specified.")
-            self.clip_range_high = clip_range
-        else:
-            self.clip_range_high = clip_range_high
+        _clip_range_high = clip_range_high if clip_range_high is not None else clip_range
+        if _clip_range_high is None:
+            raise ValueError("Either clip_range or clip_range_high must be specified.")
+        self.clip_range_high = _clip_range_high
 
     def __call__(  # type: ignore
         self,
@@ -43,20 +39,21 @@ class GSPOLossFn(PolicyLossFn):
         advantages: torch.Tensor,
         **kwargs,
     ) -> Tuple[torch.Tensor, Dict]:
-        negative_approx_kl = logprob - old_logprob
-        seq_lengths = torch.sum(action_mask, dim=-1).clamp(min=1).unsqueeze(-1)
-        negative_approx_kl = negative_approx_kl / seq_lengths
-        log_seq_importance_ratio = logprob - logprob.detach() + negative_approx_kl.detach()
+        seq_lengths = action_mask.sum(dim=-1, keepdim=True).clamp_min(1)
+        negative_approx_kl_seq = (logprob - old_logprob) * action_mask / seq_lengths
+        log_seq_importance_ratio = logprob - logprob.detach() + negative_approx_kl_seq.detach()
         ratio = torch.exp(log_seq_importance_ratio)
-        ppo_kl = masked_mean(-negative_approx_kl, action_mask)
+        
 
         pg_losses = -advantages * ratio
-        pg_losses2 = -advantages * torch.clamp(
+        pg_losses_clipped = -advantages * torch.clamp(
             ratio, 1.0 - self.clip_range_low, 1.0 + self.clip_range_high
         )
+        
+        pg_loss = masked_mean(torch.max(pg_losses, pg_losses_clipped), action_mask)
+        pg_clipfrac = masked_mean(torch.gt(pg_losses_clipped, pg_losses).float(), action_mask)
+        ppo_kl = masked_mean(-negative_approx_kl_seq, action_mask)
 
-        pg_loss = masked_mean(torch.max(pg_losses, pg_losses2), action_mask)
-        pg_clipfrac = masked_mean(torch.gt(pg_losses2, pg_losses).float(), action_mask)
         metrics = {
             "pg_clipfrac": pg_clipfrac.detach().item(),
             "ppo_kl": ppo_kl.detach().item(),
@@ -66,6 +63,8 @@ class GSPOLossFn(PolicyLossFn):
 
     @classmethod
     def default_args(cls) -> Dict:
+        # See discussion in https://github.com/volcengine/verl/pull/2775#issuecomment-3130065984
         return {
-            "clip_range": 0.2,
+            "clip_range_low": 0.0003,
+            "clip_range_high": 0.0004,
         }
