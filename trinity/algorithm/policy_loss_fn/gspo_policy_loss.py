@@ -33,31 +33,31 @@ class GSPOLossFn(PolicyLossFn):
 
     def __call__(  # type: ignore
         self,
-        logprob: torch.Tensor,
-        old_logprob: torch.Tensor,
-        action_mask: torch.Tensor,
-        advantages: torch.Tensor,
+        logprob: torch.Tensor, # [batch_size, seq_len]
+        old_logprob: torch.Tensor, # [batch_size, seq_len]
+        action_mask: torch.Tensor, # [batch_size, seq_len]
+        advantages: torch.Tensor, # [batch_size, seq_len]
         **kwargs,
     ) -> Tuple[torch.Tensor, Dict]:
-        seq_lengths = action_mask.sum(dim=-1, keepdim=True).clamp_min(1)
-        negative_approx_kl_seq = (logprob - old_logprob) * action_mask / seq_lengths
-        log_seq_importance_ratio = logprob - logprob.detach() + negative_approx_kl_seq.detach()
-        ratio = torch.exp(log_seq_importance_ratio)
-        
-
-        pg_losses = -advantages * ratio
+        seq_lengths = action_mask.sum(dim=-1, keepdim=True).clamp_min(1) # [batch_size, 1]        
+        negative_approx_kl = logprob - old_logprob # [batch_size, seq_len]
+        negative_approx_kl_seq = negative_approx_kl * action_mask / seq_lengths # [batch_size, seq_len]
+        log_seq_importance_ratio = logprob - logprob.detach() + negative_approx_kl_seq.detach() # [batch_size, seq_len]
+        ratio = torch.exp(log_seq_importance_ratio) # [batch_size, seq_len]
+        pg_losses = -advantages * ratio # [batch_size, seq_len]
         pg_losses_clipped = -advantages * torch.clamp(
             ratio, 1.0 - self.clip_range_low, 1.0 + self.clip_range_high
-        )
+        ) # [batch_size, seq_len]
         
         pg_loss = masked_mean(torch.max(pg_losses, pg_losses_clipped), action_mask)
         pg_clipfrac = masked_mean(torch.gt(pg_losses_clipped, pg_losses).float(), action_mask)
-        ppo_kl = masked_mean(-negative_approx_kl_seq, action_mask)
-
+        ppo_kl = masked_mean(-negative_approx_kl, action_mask)
+        ppo_kl_seq = masked_mean(-negative_approx_kl_seq, action_mask)
         metrics = {
             "pg_clipfrac": pg_clipfrac.detach().item(),
             "ppo_kl": ppo_kl.detach().item(),
             "pg_loss": pg_loss.detach().item(),
+            "ppo_kl_seq": ppo_kl_seq.detach().item(),
         }
         return pg_loss, metrics
 
