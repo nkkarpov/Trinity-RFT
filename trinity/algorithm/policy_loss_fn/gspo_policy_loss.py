@@ -33,22 +33,28 @@ class GSPOLossFn(PolicyLossFn):
 
     def __call__(  # type: ignore
         self,
-        logprob: torch.Tensor, # [batch_size, seq_len]
-        old_logprob: torch.Tensor, # [batch_size, seq_len]
-        action_mask: torch.Tensor, # [batch_size, seq_len]
-        advantages: torch.Tensor, # [batch_size, seq_len]
+        logprob: torch.Tensor,  # [batch_size, seq_len]
+        old_logprob: torch.Tensor,  # [batch_size, seq_len]
+        action_mask: torch.Tensor,  # [batch_size, seq_len]
+        advantages: torch.Tensor,  # [batch_size, seq_len]
         **kwargs,
     ) -> Tuple[torch.Tensor, Dict]:
-        negative_approx_kl = logprob - old_logprob # [batch_size, seq_len]
-        negative_approx_kl_seq = masked_mean(negative_approx_kl, action_mask, axis=-1) # [batch_size]
-        log_seq_importance_ratio = logprob - logprob.detach() + negative_approx_kl_seq.detach().unsqueeze(-1) # [batch_size, seq_len]
-        ratio = torch.exp(log_seq_importance_ratio) # [batch_size, seq_len]
-        pg_losses = -advantages * ratio # [batch_size, seq_len]
+        negative_approx_kl = logprob - old_logprob  # [batch_size, seq_len]
+        negative_approx_kl_seq = masked_mean(
+            negative_approx_kl, action_mask, axis=-1
+        )  # [batch_size]
+        log_seq_importance_ratio = (
+            logprob - logprob.detach() + negative_approx_kl_seq.detach().unsqueeze(-1)
+        )  # [batch_size, seq_len]
+        ratio = torch.exp(log_seq_importance_ratio)  # [batch_size, seq_len]
+        pg_losses = -advantages * ratio  # [batch_size, seq_len]
         pg_losses_clipped = -advantages * torch.clamp(
             ratio, 1.0 - self.clip_range_low, 1.0 + self.clip_range_high
-        ) # [batch_size, seq_len]
-        
-        seq_losses = masked_mean(torch.max(pg_losses, pg_losses_clipped), action_mask, axis=-1) # [batch_size]
+        )  # [batch_size, seq_len]
+
+        seq_losses = masked_mean(
+            torch.max(pg_losses, pg_losses_clipped), action_mask, axis=-1
+        )  # [batch_size]
         pg_loss = torch.mean(seq_losses)
         pg_clipfrac = masked_mean(torch.gt(pg_losses_clipped, pg_losses).float(), action_mask)
         ppo_kl = masked_mean(-negative_approx_kl, action_mask)
