@@ -24,7 +24,7 @@ dependencies = [
     "verl==0.4.1",
     "ray[default]>=2.45.0",
     "vllm>=0.9.1,<=0.9.2",
-    "tensordict==0.6.2",
+    "tensordict",
     "wandb",
     "omegaconf",
     "sqlalchemy",
@@ -41,21 +41,31 @@ dependencies = [
     "openai",
     "jsonlines",
     "sortedcontainers",
+    "pyarrow==19.0.0",
+    "datasets>=4.0.0",
+    "flash-attn==2.8.0.post2",
 ]
+
+[tool.uv.sources]
+# verl = { git = "ssh://git@github.com/logiq-ai/verl", branch = "pasha-oom-debug3" }
+vllm = { git = "ssh://git@github.com/nkkarpov/vllm", branch = "nk/v0.9.2-patched" }
+
+[tool.uv]
+no-build-isolation-package = ["flash-attn"]
 
 [project.scripts]
 trinity = "trinity.cli.launcher:main"
 
 [project.optional-dependencies]
-data = [
-    "py-data-juicer"
-]
-agent = [
-    "agentscope"
-]
-rm_gallery = [
-    "rm-gallery>=0.1.1"
-]
+# data = [
+    # "py-data-juicer"
+# ]
+# agent = [
+    # "agentscope"
+# ]
+#rm_gallery = [
+#    "rm-gallery>=0.1.1"
+#]
 dev = [
     "pre-commit>=2.17.0",
     "black>=23.7.0",

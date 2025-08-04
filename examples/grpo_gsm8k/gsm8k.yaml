@@ -1,12 +1,15 @@
 project: "Trinity-RFT-gsm8k"
-name: "qwen2.5-1.5B-gsm8k"
-checkpoint_root_dir: /PATH/TO/CHECKPOINT/
+name: "qwen2.5-1.5B-gsm8k-nk"
+checkpoint_root_dir: checkpoint/
 algorithm:
   algorithm_type: grpo
   repeat_times: 8
 
+monitor:
+  monitor_type: wandb
+
 model:
-  model_path: /PATH/TO/MODEL/
+  model_path: Qwen/Qwen3-0.6B
   max_prompt_tokens: 256
   max_response_tokens: 1024
 cluster:
