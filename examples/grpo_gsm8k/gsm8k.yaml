@@ -1,9 +1,10 @@
 project: "Trinity-RFT-gsm8k"
-name: "qwen2.5-1.5B-gsm8k-nk"
+name: "qwen2.5-1.5B-gsm8k-pilot-gspo-longrun"
 checkpoint_root_dir: checkpoint/
 algorithm:
   algorithm_type: grpo
   repeat_times: 8
+  policy_loss_fn: gspo
 
 monitor:
   monitor_type: wandb
@@ -16,7 +17,7 @@ cluster:
   node_num: 1
   gpu_per_node: 8
 buffer:
-  total_epochs: 1
+  total_epochs: 100
   batch_size: 96
   max_retry_times: 3
   max_retry_interval: 1
