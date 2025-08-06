@@ -54,11 +54,11 @@ buffer:
     #   storage_type: file
     #   path: '/PATH/TO/WARMUP_DATA/'
 explorer:
-  eval_interval: 50
+  eval_interval: 10
   runner_num: 32
   rollout_model:
     engine_type: vllm_async
-    engine_num: 2
+    engine_num: 4
     tensor_parallel_size: 1
     enable_prefix_caching: false
     enforce_eager: true
