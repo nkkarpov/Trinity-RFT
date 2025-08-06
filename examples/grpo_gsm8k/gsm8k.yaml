@@ -1,5 +1,5 @@
 project: "Trinity-RFT-gsm8k"
-name: "qwen2.5-1.5B-gsm8k-pilot-gspo-longrun"
+name: "qwen2.5-1.5B-gsm8k-pilot-split"
 checkpoint_root_dir: checkpoint/
 algorithm:
   algorithm_type: grpo
@@ -14,8 +14,8 @@ model:
   max_prompt_tokens: 256
   max_response_tokens: 1024
 cluster:
-  node_num: 1
-  gpu_per_node: 8
+  node_num: 2
+  gpu_per_node: 4
 buffer:
   total_epochs: 100
   batch_size: 96
